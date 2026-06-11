@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>数字人视频生成工具</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --success: #059669;
+    --success-light: #ecfdf5;
+    --warning: #d97706;
+    --warning-light: #fffbeb;
+    --danger: #dc2626;
+    --danger-light: #fef2f2;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white;
+    padding: 32px 0;
+    text-align: center;
+    position: relative;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .header p { font-size: 14px; opacity: .85; }
+
+  .header .settings-btn {
+    position: absolute; top: 16px; right: 24px;
+    background: rgba(255,255,255,.2); border: none; color: #fff;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: background .2s;
+  }
+  .header .settings-btn:hover { background: rgba(255,255,255,.35); }
+  .header .settings-btn.configured::after {
+    content: ''; position: absolute; top: 4px; right: 4px;
+    width: 8px; height: 8px; border-radius: 50%; background: #4ade80;
+  }
+  .header .settings-btn.unconfigured::after {
+    content: ''; position: absolute; top: 4px; right: 4px;
+    width: 8px; height: 8px; border-radius: 50%; background: #f87171;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* Stepper */
+  .stepper {
+    display: flex; gap: 0; margin-bottom: 32px;
+    background: var(--card-bg); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .step-indicator {
+    flex: 1; text-align: center; padding: 16px 12px;
+    cursor: pointer; transition: background .2s; border-bottom: 3px solid transparent;
+  }
+  .step-indicator.active { border-bottom-color: var(--primary); background: var(--primary-light); }
+  .step-indicator.done { border-bottom-color: var(--success); background: var(--success-light); }
+  .step-indicator .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 700;
+    margin-bottom: 4px; background: var(--border); color: var(--text-secondary);
+  }
+  .step-indicator.active .step-num { background: var(--primary); color: #fff; }
+  .step-indicator.done .step-num { background: var(--success); color: #fff; }
+  .step-indicator .step-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+  .step-indicator.active .step-label { color: var(--primary); }
+  .step-indicator.done .step-label { color: var(--success); }
+
+  .step-content { display: none; }
+  .step-content.active { display: block; }
+
+  .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; margin-bottom: 20px; }
+  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .card .subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+  .tab-btn {
+    padding: 10px 20px; border: none; background: none; font-size: 14px; font-weight: 600;
+    color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: all .2s; font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--primary); }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Mode Selector */
+  .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 10px; }
+  @media (max-width: 700px) { .mode-grid { grid-template-columns: 1fr; } }
+  .mode-card {
+    border: 2px solid var(--border); border-radius: var(--radius); padding: 20px 16px;
+    cursor: pointer; transition: all .2s; text-align: center;
+  }
+  .mode-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+  .mode-card.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+  .mode-card .mode-icon { font-size: 32px; margin-bottom: 8px; }
+  .mode-card .mode-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .mode-card .mode-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* Form */
+  .form-group { margin-bottom: 20px; }
+  .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .form-group .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .input-row { display: flex; gap: 10px; }
+  .input-row input { flex: 1; }
+  input[type="text"], input[type="url"] {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 14px; transition: border-color .2s; outline: none; font-family: inherit;
+  }
+  input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+
+  .divider-text {
+    display: flex; align-items: center; gap: 14px; margin: 16px 0;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .divider-text::before, .divider-text::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* File Upload */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px;
+    text-align: center; cursor: pointer; transition: all .2s; position: relative;
+  }
+  .upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-zone .upload-icon { font-size: 40px; margin-bottom: 8px; }
+  .upload-zone .upload-text { font-size: 14px; color: var(--text-secondary); }
+  .upload-zone .upload-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  .preview-box { margin-top: 12px; border-radius: var(--radius-sm); overflow: hidden; max-width: 300px; }
+  .preview-box img, .preview-box video { width: 100%; border-radius: var(--radius-sm); }
+  .preview-box audio { width: 100%; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px;
+    border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .2s; font-family: inherit;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+  .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-outline:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover:not(:disabled) { opacity: .9; }
+  .btn-danger { background: none; color: var(--danger); border: 1.5px solid var(--danger); }
+  .btn-danger:hover:not(:disabled) { background: var(--danger-light); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* Status Badge */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    border-radius: 20px; font-size: 13px; font-weight: 600;
+  }
+  .status-badge.pending { background: var(--warning-light); color: var(--warning); }
+  .status-badge.running { background: var(--primary-light); color: var(--primary); }
+  .status-badge.done { background: var(--success-light); color: var(--success); }
+  .status-badge.error { background: var(--danger-light); color: var(--danger); }
+
+  .spinner {
+    display: inline-block; width: 16px; height: 16px; border: 2px solid currentColor;
+    border-right-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .alert { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
+  .alert-info { background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe; }
+  .alert-success { background: var(--success-light); color: var(--success); border: 1px solid #a7f3d0; }
+  .alert-error { background: var(--danger-light); color: var(--danger); border: 1px solid #fecaca; }
+
+  .result-info {
+    background: var(--bg); border-radius: var(--radius-sm); padding: 16px; margin-top: 16px;
+  }
+  .result-info .kv { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .result-info .kv:last-child { border-bottom: none; }
+  .result-info .kv .key { color: var(--text-secondary); }
+  .result-info .kv .val { font-weight: 600; word-break: break-all; text-align: right; max-width: 60%; }
+
+  .progress-bar { width: 100%; height: 6px; background: var(--border); border-radius: 3px; margin: 12px 0; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width .5s ease; }
+
+  .cost-info {
+    background: var(--warning-light); border: 1px solid #fde68a; border-radius: var(--radius-sm);
+    padding: 12px 16px; font-size: 13px; color: var(--warning); margin-top: 16px;
+  }
+
+  /* History List */
+  .history-header {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 10px; margin-bottom: 14px;
+  }
+  .history-header .count { font-size: 13px; color: var(--text-muted); }
+  .history-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+  .history-filter .filter-chip {
+    padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--border);
+    font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: var(--text-secondary);
+    transition: all .2s; font-family: inherit;
+  }
+  .history-filter .filter-chip:hover { border-color: var(--primary); color: var(--primary); }
+  .history-filter .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  .history-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+  .history-card {
+    border: 2px solid var(--border); border-radius: var(--radius); padding: 16px;
+    cursor: pointer; transition: all .2s; position: relative;
+  }
+  .history-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+  .history-card.selected {
+    border-color: var(--primary); background: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+  }
+  .history-card .hc-image {
+    width: 100%; height: 120px; border-radius: var(--radius-sm); object-fit: cover;
+    background: var(--bg); margin-bottom: 10px;
+  }
+  .history-card .hc-image-placeholder {
+    width: 100%; height: 120px; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, #e0e7ff, #ddd6fe);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; margin-bottom: 10px;
+  }
+  .history-card .hc-mode {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; margin-bottom: 6px;
+  }
+  .history-card .hc-mode.normal { background: #dbeafe; color: #1d4ed8; }
+  .history-card .hc-mode.loopy { background: #fae8ff; color: #a21caf; }
+  .history-card .hc-mode.loopy_large { background: #fce7f3; color: #be185d; }
+  .history-card .hc-id {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .history-card .hc-date { font-size: 11px; color: var(--text-muted); }
+  .history-card .hc-delete {
+    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,.9); color: var(--text-muted); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .2s;
+  }
+  .history-card:hover .hc-delete { opacity: 1; }
+  .history-card .hc-delete:hover { color: var(--danger); background: #fff; }
+
+  .empty-state {
+    text-align: center; padding: 48px 20px; color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .empty-text { font-size: 14px; margin-bottom: 4px; }
+  .empty-state .empty-hint { font-size: 12px; }
+
+  /* Selected indicator */
+  .selected-indicator {
+    display: none; position: absolute; top: -8px; right: -8px;
+    width: 24px; height: 24px; border-radius: 50%; background: var(--primary);
+    color: #fff; font-size: 12px; align-items: center; justify-content: center;
+  }
+  .history-card.selected .selected-indicator { display: flex; }
+
+  /* Settings Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 999; align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    padding: 28px; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal .modal-close {
+    float: right; background: none; border: none; font-size: 22px;
+    cursor: pointer; color: var(--text-muted); line-height: 1;
+  }
+  .modal .modal-close:hover { color: var(--text); }
+  .modal .modal-status {
+    font-size: 12px; padding: 6px 10px; border-radius: 4px; margin-bottom: 14px;
+  }
+  .modal .modal-status.ok { background: var(--success-light); color: var(--success); }
+  .modal .modal-status.warn { background: var(--warning-light); color: var(--warning); }
+  .modal .modal-hint { font-size: 12px; color: var(--text-muted); margin: 4px 0 12px; }
+
+  @media (max-width: 700px) {
+    .history-list { grid-template-columns: 1fr; }
+    .history-header { flex-direction: column; align-items: flex-start; }
+  }
+
+  /* Video Records Panel */
+  .vr-panel-toggle {
+    display: flex; align-items: center; gap: 8px; margin: 24px 0 16px;
+    padding: 10px 20px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card-bg); cursor: pointer; font-size: 14px; font-weight: 600;
+    color: var(--text-secondary); transition: all .2s; font-family: inherit; width: 100%; text-align: left;
+  }
+  .vr-panel-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .vr-panel-toggle .vr-arrow { transition: transform .2s; }
+  .vr-panel-toggle.open .vr-arrow { transform: rotate(90deg); }
+  .vr-panel { display: none; }
+  .vr-panel.open { display: block; }
+
+  .vr-toolbar {
+    display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+  }
+  .vr-toolbar .vr-search {
+    flex: 1; min-width: 200px; padding: 8px 12px; border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; outline: none; font-family: inherit;
+  }
+  .vr-toolbar .vr-search:focus { border-color: var(--primary); }
+
+  .vr-records { display: flex; flex-direction: column; gap: 10px; }
+  .vr-record {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 16px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+    transition: box-shadow .2s;
+  }
+  .vr-record:hover { box-shadow: var(--shadow); }
+  .vr-record .vr-main { min-width: 0; }
+  .vr-record .vr-meta {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px;
+  }
+  .vr-record .vr-mode-chip {
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;
+  }
+  .vr-record .vr-mode-chip.normal { background: #dbeafe; color: #1d4ed8; }
+  .vr-record .vr-mode-chip.loopy { background: #fae8ff; color: #a21caf; }
+  .vr-record .vr-mode-chip.loopy_large { background: #fce7f3; color: #be185d; }
+  .vr-record .vr-date { font-size: 11px; color: var(--text-muted); }
+  .vr-record .vr-duration { font-size: 12px; color: var(--text-secondary); }
+  .vr-record .vr-tags {
+    display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0;
+  }
+  .vr-record .vr-tag {
+    display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px;
+    border-radius: 12px; font-size: 11px; font-weight: 600;
+    background: var(--primary-light); color: var(--primary);
+  }
+  .vr-record .vr-tag .vr-tag-remove {
+    cursor: pointer; font-size: 14px; line-height: 1; opacity: .6;
+  }
+  .vr-record .vr-tag .vr-tag-remove:hover { opacity: 1; color: var(--danger); }
+  .vr-record .vr-add-tag {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 2px 8px; border: 1px dashed var(--border); border-radius: 12px;
+    font-size: 11px; cursor: pointer; color: var(--text-muted); background: none;
+    transition: all .2s; font-family: inherit;
+  }
+  .vr-record .vr-add-tag:hover { border-color: var(--primary); color: var(--primary); }
+  .vr-record .vr-tag-input {
+    width: 80px; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 12px;
+    font-size: 11px; outline: none; font-family: inherit;
+  }
+  .vr-record .vr-notes {
+    font-size: 12px; color: var(--text-secondary); margin-top: 4px;
+    white-space: pre-wrap; cursor: pointer; min-height: 18px;
+  }
+  .vr-record .vr-notes:hover { color: var(--primary); }
+  .vr-record .vr-notes-edit {
+    width: 100%; min-height: 40px; padding: 6px 8px; border: 1px solid var(--primary);
+    border-radius: var(--radius-sm); font-size: 12px; outline: none; resize: vertical;
+    font-family: inherit;
+  }
+  .vr-record .vr-actions {
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  }
+  .vr-record .vr-actions button {
+    padding: 4px 10px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border);
+    background: #fff; cursor: pointer; color: var(--text-secondary); font-family: inherit;
+    transition: all .2s;
+  }
+  .vr-record .vr-actions button:hover { border-color: var(--primary); color: var(--primary); }
+  .vr-record .vr-actions .vr-btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+  .vr-record .vr-video-link { font-size: 11px; color: var(--primary); text-decoration: none; }
+  .vr-record .vr-video-link:hover { text-decoration: underline; }
+  .vr-cost { font-weight: 700; font-size: 12px; color: var(--warning); white-space: nowrap; }
+
+  /* Task Dashboard */
+  .task-panel-toggle {
+    display: flex; align-items: center; gap: 8px; margin: 16px 0;
+    padding: 10px 20px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card-bg); cursor: pointer; font-size: 14px; font-weight: 600;
+    color: var(--text-secondary); transition: all .2s; font-family: inherit; width: 100%; text-align: left;
+  }
+  .task-panel-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .task-panel-toggle .tp-arrow { transition: transform .2s; }
+  .task-panel-toggle.open .tp-arrow { transform: rotate(90deg); }
+  .task-panel { display: none; }
+  .task-panel.open { display: block; }
+
+  .tp-toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .tp-toolbar .tp-search {
+    flex: 1; min-width: 200px; padding: 8px 12px; border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; outline: none; font-family: inherit;
+  }
+  .tp-toolbar .tp-search:focus { border-color: var(--primary); }
+  .tp-toolbar .tp-btn {
+    padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: #fff; cursor: pointer; font-size: 12px; font-family: inherit;
+    transition: all .2s;
+  }
+  .tp-toolbar .tp-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .tp-toolbar .tp-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  .tp-list { display: flex; flex-direction: column; gap: 8px; max-height: 500px; overflow-y: auto; }
+  .tp-item {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 14px; background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); transition: box-shadow .2s;
+  }
+  .tp-item:hover { box-shadow: var(--shadow); }
+  .tp-item .tp-status-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .tp-item .tp-status-dot.submitted { background: #94a3b8; animation: pulse 1.5s infinite; }
+  .tp-item .tp-status-dot.in_queue { background: #f59e0b; animation: pulse 1s infinite; }
+  .tp-item .tp-status-dot.generating { background: #3b82f6; animation: pulse .6s infinite; }
+  .tp-item .tp-status-dot.done { background: #22c55e; }
+  .tp-item .tp-status-dot.failed { background: #ef4444; }
+  .tp-item .tp-status-dot.not_found { background: #6b7280; }
+  .tp-item .tp-status-dot.expired { background: #6b7280; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .tp-item .tp-info { min-width: 0; }
+  .tp-item .tp-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .tp-item .tp-label .tp-empty-label { color: var(--text-muted); font-weight: 400; font-style: italic; }
+  .tp-item .tp-meta { font-size: 11px; color: var(--text-muted); }
+  .tp-item .tp-task-type {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: var(--primary-light); color: var(--primary);
+  }
+  .tp-item .tp-notes { font-size: 11px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tp-item .tp-actions { display: flex; gap: 4px; }
+  .tp-item .tp-actions button {
+    padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border);
+    background: #fff; cursor: pointer; color: var(--text-secondary); font-family: inherit;
+    transition: all .2s;
+  }
+  .tp-item .tp-actions button:hover { border-color: var(--primary); color: var(--primary); }
+  .tp-item .tp-actions .tp-btn-delete:hover { border-color: var(--danger); color: var(--danger); }
+  .tp-refresh-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; text-align: right; }
+  .tp-badge {
+    display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 10px;
+    font-weight: 600; margin-left: 4px;
+  }
+  .tp-badge.pending-count { background: #fef3c7; color: #b45309; }
+
+  /* Label input in forms */
+  .label-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .label-input-row input {
+    flex: 1; padding: 7px 10px; border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; outline: none; font-family: inherit;
+  }
+  .label-input-row input:focus { border-color: var(--primary); }
+  .label-input-row input::placeholder { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="API 凭据设置">⚙</button>
+  <h1>🎬 数字人视频生成工具</h1>
+  <p>基于火山引擎「单图音频驱动」API — 上传图片 + 音频，即可生成数字人视频</p>
+  <p id="billingInfo" style="font-size:12px;margin-top:8px;opacity:.75;">花费统计加载中...</p>
+</div>
+
+<div class="container">
+
+  <!-- Step Indicators -->
+  <div class="stepper" id="stepper">
+    <div class="step-indicator active" data-step="1">
+      <div class="step-num">1</div>
+      <div class="step-label">选择模式 & 上传图片</div>
+    </div>
+    <div class="step-indicator" data-step="2">
+      <div class="step-num">2</div>
+      <div class="step-label">创建数字形象</div>
+    </div>
+    <div class="step-indicator" data-step="3">
+      <div class="step-num">3</div>
+      <div class="step-label">上传音频 & 生成视频</div>
+    </div>
+    <div class="step-indicator" data-step="4">
+      <div class="step-num">4</div>
+      <div class="step-label">预览 & 下载</div>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 1 ===================== -->
+  <div class="step-content active" id="step1">
+    <div class="card">
+      <h2>第一步：选择驱动模式 & 上传图片</h2>
+      <p class="subtitle">可从历史形象中快速复用，或上传新图片创建全新数字形象</p>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('history')" id="tabHistory">
+          📋 使用历史形象 (<span id="historyTabCount">0</span>)
+        </button>
+        <button class="tab-btn" onclick="switchTab('new')" id="tabNew">
+          🆕 创建新形象
+        </button>
+      </div>
+
+      <!-- Tab: 历史形象 -->
+      <div class="tab-panel active" id="panelHistory">
+        <div class="history-header">
+          <span class="count" id="historyCount">共 0 个历史形象</span>
+          <div class="history-filter" id="historyFilter">
+            <button class="filter-chip active" data-mode="all" onclick="filterHistory('all')">全部</button>
+            <button class="filter-chip" data-mode="normal" onclick="filterHistory('normal')">普通模式</button>
+            <button class="filter-chip" data-mode="loopy" onclick="filterHistory('loopy')">灵动模式</button>
+            <button class="filter-chip" data-mode="loopy_large" onclick="filterHistory('loopy_large')">大画幅灵动</button>
+          </div>
+        </div>
+
+        <div class="history-list" id="historyList"></div>
+
+        <div class="empty-state" id="historyEmpty" style="display:none">
+          <div class="empty-icon">📭</div>
+          <div class="empty-text">暂无历史形象记录</div>
+          <div class="empty-hint">切换到「创建新形象」标签页，上传图片创建第一个数字形象</div>
+        </div>
+
+        <!-- 选中历史形象后的操作 -->
+        <div id="historyAction" style="display:none;margin-top:20px;padding:16px;background:var(--primary-light);border-radius:var(--radius-sm);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div>
+              <strong style="font-size:14px;">已选择：</strong>
+              <span id="historySelectedName" style="font-size:13px;color:var(--text-secondary);"></span>
+            </div>
+            <div class="btn-group" style="margin-top:0;">
+              <button class="btn btn-primary btn-sm" onclick="useHistoryAvatar()" id="btnUseHistory">
+                使用此形象生成视频 →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 新建形象 -->
+      <div class="tab-panel" id="panelNew">
+        <div class="form-group">
+          <label>驱动模式</label>
+          <div class="mode-grid" id="modeSelector">
+            <div class="mode-card" data-mode="normal">
+              <div class="mode-icon">🎭</div>
+              <div class="mode-name">普通模式</div>
+              <div class="mode-desc">驱动嘴部 | 真人/动漫/宠物 | 最长180秒 | 原图比例输出</div>
+            </div>
+            <div class="mode-card selected" data-mode="loopy">
+              <div class="mode-icon">✨</div>
+              <div class="mode-name">灵动模式</div>
+              <div class="mode-desc">驱动全脸 | 真人/动漫/宠物 | 真人180秒, 宠物90秒 | 512×512方形</div>
+            </div>
+            <div class="mode-card" data-mode="loopy_large">
+              <div class="mode-icon">🎥</div>
+              <div class="mode-name">大画幅灵动模式</div>
+              <div class="mode-desc">全脸+身体 | 仅真人/动漫 | 最长45秒 | 16:9/9:16/3:4/4:3</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>上传图片</label>
+          <p class="hint">支持 JPG/PNG 格式，请使用清晰正面照，避免侧脸、遮挡、过曝</p>
+          <div class="upload-zone" id="imageUploadZone">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">点击或拖拽上传图片</div>
+            <div class="upload-hint">支持 JPG, PNG, WEBP</div>
+            <input type="file" accept="image/*" id="imageFileInput">
+          </div>
+          <div class="preview-box" id="imagePreviewBox" style="display:none"></div>
+        </div>
+
+        <div class="divider-text">或</div>
+
+        <div class="form-group">
+          <label>图片 URL</label>
+          <div class="input-row">
+            <input type="url" id="imageUrlInput" placeholder="https://example.com/your-image.jpg">
+          </div>
+          <p class="hint">如果图片已托管在公网，可直接粘贴URL（需可公网访问）</p>
+        </div>
+
+        <div class="form-group">
+          <label>任务标签（可选）</label>
+          <p class="hint">输入自定义标签，便于在任务面板中检索</p>
+          <input type="text" id="avatarLabel" placeholder="例如：测试任务001、产品演示">
+        </div>
+
+        <div class="cost-info">
+          💡 形象创建费用：<strong>0.1元/形象</strong>（创建失败不收费）&nbsp;&nbsp;|&nbsp;&nbsp;视频生成费用：<strong>0.3元/秒</strong>（生成失败不收费）
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="goToStep2()" id="btnStep1Next">下一步：创建数字形象 →</button>
+          <span class="status-badge error" id="step1Error" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 2 ===================== -->
+  <div class="step-content" id="step2">
+    <div class="card">
+      <h2>第二步：创建数字形象</h2>
+      <p class="subtitle">系统将根据您上传的图片创建数字人形象</p>
+
+      <div class="result-info" id="step2ImageInfo"></div>
+
+      <div id="step2Init">
+        <p style="margin: 16px 0; font-size: 14px; color: var(--text-secondary);">
+          点击下方按钮提交形象创建任务，系统将自动等待处理结果。
+        </p>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep1()">← 返回上一步</button>
+          <button class="btn btn-primary" onclick="createAvatar()" id="btnCreateAvatar">提交形象创建</button>
+        </div>
+      </div>
+
+      <div id="step2Progress" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+          <span class="status-badge running"><span class="spinner"></span> 形象创建中...</span>
+          <span id="step2PollCount" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+        <div class="progress-bar"><div class="fill" style="width:50%"></div></div>
+      </div>
+
+      <div id="step2Result" style="display:none">
+        <div id="step2ResultContent"></div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep1()">← 返回重新上传</button>
+          <button class="btn btn-primary" onclick="goToStep3()" id="btnStep2Next">下一步：上传音频 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 3 ===================== -->
+  <div class="step-content" id="step3">
+    <div class="card">
+      <h2>第三步：上传音频 & 生成视频</h2>
+      <p class="subtitle">上传音频文件，系统将使用已创建的数字形象驱动生成视频</p>
+
+      <div class="result-info" id="step3AvatarInfo"></div>
+
+      <div class="form-group" style="margin-top:16px;">
+        <label>上传音频</label>
+        <p class="hint" id="audioHint">支持 MP3/WAV/M4A 等格式</p>
+        <div class="upload-zone" id="audioUploadZone">
+          <div class="upload-icon">🎵</div>
+          <div class="upload-text">点击上传音频文件</div>
+          <div class="upload-hint">支持 MP3, WAV, M4A, MP4(提取音频)</div>
+          <input type="file" accept="audio/*,video/*" id="audioFileInput">
+        </div>
+        <div class="preview-box" id="audioPreviewBox" style="display:none"></div>
+      </div>
+
+      <div class="divider-text">或</div>
+
+      <div class="form-group">
+        <label>音频 URL</label>
+        <div class="input-row">
+          <input type="url" id="audioUrlInput" placeholder="https://example.com/your-audio.mp3">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>任务标签（可选）</label>
+        <p class="hint">输入自定义标签，便于在任务面板中检索</p>
+        <input type="text" id="videoLabel" placeholder="例如：产品演示V1、客户A">
+      </div>
+
+      <details style="margin-top:16px;">
+        <summary style="cursor:pointer;font-size:14px;font-weight:600;color:var(--text-secondary);">
+          隐式水印标识（可选）
+        </summary>
+        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-group">
+            <label>内容生成服务商ID</label>
+            <input type="text" id="contentProducer" placeholder="选填">
+          </div>
+          <div class="form-group">
+            <label>生成服务唯一ID</label>
+            <input type="text" id="producerId" placeholder="选填">
+          </div>
+          <div class="form-group">
+            <label>内容传播服务商ID</label>
+            <input type="text" id="contentPropagator" placeholder="选填">
+          </div>
+          <div class="form-group">
+            <label>传播服务唯一ID</label>
+            <input type="text" id="propagateId" placeholder="选填">
+          </div>
+        </div>
+      </details>
+
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="goToStep1()">← 返回选择形象</button>
+        <button class="btn btn-primary" onclick="generateVideo()" id="btnGenerateVideo">提交视频生成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 4 ===================== -->
+  <div class="step-content" id="step4">
+    <div class="card">
+      <h2>第四步：预览 & 下载视频</h2>
+      <p class="subtitle">视频生成完成后可在此预览和下载</p>
+
+      <div id="step4Progress" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+          <span class="status-badge running"><span class="spinner"></span> 视频生成中...</span>
+          <span id="step4PollCount" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+        <div class="progress-bar"><div class="fill" style="width:50%"></div></div>
+      </div>
+
+      <div id="step4Result" style="display:none">
+        <div id="step4ResultContent"></div>
+        <div class="btn-group" style="margin-top:20px;">
+          <button class="btn btn-outline" onclick="goToStep3()">← 返回重新生成</button>
+          <button class="btn btn-primary" onclick="resetAll()">🔄 开始新的任务</button>
+        </div>
+      </div>
+
+      <div id="step4Warming" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+          <span class="status-badge running"><span class="spinner"></span> <span id="step4WarmingText">视频生成完成，等待 CDN 缓存就绪...</span></span>
+        </div>
+        <div class="progress-bar" id="step4WarmingBar"><div class="fill" id="step4WarmingFill" style="width:0%"></div></div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">火山引擎 CDN 需要几秒同步时间，请稍候</p>
+      </div>
+
+      <div id="step4Error" style="display:none">
+        <div class="alert alert-error" id="step4ErrorMsg"></div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep3()">← 返回上一步</button>
+          <button class="btn btn-primary" onclick="resetAll()">🔄 开始新的任务</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Records Panel -->
+  <button class="vr-panel-toggle" id="vrToggle" onclick="toggleVideoRecords()">
+    <span class="vr-arrow">▶</span> 📋 视频生成记录 (<span id="vrCount">0</span>)
+  </button>
+  <div class="vr-panel" id="vrPanel">
+    <div class="card">
+      <div class="vr-toolbar">
+        <input type="text" class="vr-search" id="vrSearch" placeholder="搜索 resource_id / task_id / 备注..." oninput="onVRSearch()">
+        <div class="history-filter" id="vrTagFilter"></div>
+      </div>
+      <div class="vr-records" id="vrRecords"></div>
+      <div class="empty-state" id="vrEmpty" style="display:none">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">暂无视频生成记录</div>
+        <div class="empty-hint">完成一次视频生成后，记录将自动出现在这里</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Dashboard Panel -->
+  <button class="task-panel-toggle" id="tpToggle" onclick="toggleTaskPanel()">
+    <span class="tp-arrow">▶</span> 📊 任务面板 (<span id="tpPendingCount">0</span> 个进行中)
+  </button>
+  <div class="task-panel" id="tpPanel">
+    <div class="card">
+      <div class="tp-toolbar">
+        <input type="text" class="tp-search" id="tpSearch" placeholder="按标签或备注搜索任务..." oninput="onTPSearch()">
+        <button class="tp-btn" id="tpBtnAll" onclick="filterTasksByStatus('all')">全部</button>
+        <button class="tp-btn active" id="tpBtnPending" onclick="filterTasksByStatus('pending')">进行中</button>
+        <button class="tp-btn" id="tpBtnDone" onclick="filterTasksByStatus('done')">已完成</button>
+        <button class="tp-btn" id="tpBtnRefresh" onclick="refreshTaskStatuses()">🔄 刷新状态</button>
+      </div>
+      <div class="tp-list" id="tpList"></div>
+      <div class="tp-refresh-hint" id="tpRefreshHint"></div>
+      <div class="empty-state" id="tpEmpty" style="display:none">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">暂无任务记录</div>
+        <div class="empty-hint">提交形象创建或视频生成任务后，任务将自动出现在这里</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSettings()">×</button>
+    <h3>⚙️ 火山引擎 API 凭据设置</h3>
+
+    <div class="modal-status warn" id="settingsStatus">
+      未配置凭据，请填入火山引擎 Access Key 和 Secret Key
+    </div>
+
+    <div class="form-group">
+      <label>Access Key (AK)</label>
+      <input type="text" id="settingsAK" placeholder="请输入 Access Key" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label>Secret Key (SK)</label>
+      <input type="text" id="settingsSK" placeholder="请输入 Secret Key" autocomplete="off">
+    </div>
+
+    <p class="modal-hint">
+      AK/SK 仅保存在浏览器本地和当前服务端内存中，不会上传到第三方。
+      <br>获取方式：<a href="https://console.volcengine.com/iam/keymanage/" target="_blank" style="color:var(--primary);">火山引擎控制台 → 密钥管理</a>
+    </p>
+
+    <div class="btn-group">
+      <button class="btn btn-outline" onclick="closeSettings()">取消</button>
+      <button class="btn btn-primary" onclick="saveSettings()" id="btnSaveSettings">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── 全局状态 ─────────────────────────────────────────────
+const API_BASE = '';
+const state = {
+  mode: 'loopy',
+  imageUrl: '',
+  imageUploaded: false,
+  resourceId: '',
+  avatarTaskId: '',
+  audioUrl: '',
+  audioUploaded: false,
+  audioDuration: 0,
+  videoTaskId: '',
+  videoUrls: [],
+  currentStep: 1,
+  // 历史形象相关
+  allAvatars: [],
+  filteredAvatars: [],
+  selectedHistoryAvatar: null,
+  historyFilterMode: 'all',
+  currentTab: 'history',
+};
+
+// ─── 页面加载：获取历史形象 + 同步凭据 ──────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadHistoryAvatars();
+  initSettings();
+});
+
+async function loadHistoryAvatars() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/avatars?limit=50`);
+    const data = await resp.json();
+    if (data.code === 10000 && data.data.avatars) {
+      state.allAvatars = data.data.avatars;
+      applyHistoryFilter();
+    }
+  } catch (err) {
+    console.error('加载历史形象失败:', err);
+  }
+}
+
+// ─── 凭据设置 ──────────────────────────────────────────────
+const SETTINGS_KEY = 'volcengine_credentials';
+
+async function initSettings() {
+  // 从 localStorage 读取
+  const saved = localStorage.getItem(SETTINGS_KEY);
+  if (saved) {
+    try {
+      const creds = JSON.parse(saved);
+      if (creds.ak && creds.sk) {
+        document.getElementById('settingsAK').value = creds.ak;
+        document.getElementById('settingsSK').value = creds.sk;
+        // 同步到后端（必须先 await 再刷新计费）
+        await syncCredentialsToBackend(creds.ak, creds.sk);
+      }
+    } catch (e) { /* 解析失败忽略 */ }
+  }
+  updateSettingsIndicator();
+  await refreshBilling();
+}
+
+async function syncCredentialsToBackend(ak, sk) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_key: ak, secret_key: sk }),
+    });
+    const data = await resp.json();
+    if (data.code === 10000) {
+      updateSettingsIndicator();
+    }
+  } catch (err) {
+    console.error('同步凭据失败:', err);
+  }
+}
+
+async function updateSettingsIndicator() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/settings/status`);
+    const data = await resp.json();
+    const configured = data.data && data.data.configured;
+    const btn = document.getElementById('settingsBtn');
+    btn.classList.remove('configured', 'unconfigured');
+    btn.classList.add(configured ? 'configured' : 'unconfigured');
+    btn.title = configured ? 'API 凭据已配置' : 'API 凭据未配置 - 点击设置';
+  } catch (err) {
+    // 后端不可用时忽略
+  }
+}
+
+function openSettings() {
+  document.getElementById('settingsModal').classList.add('show');
+  // 更新状态提示
+  const saved = localStorage.getItem(SETTINGS_KEY);
+  const status = document.getElementById('settingsStatus');
+  if (saved) {
+    status.textContent = '已配置凭据（可修改后重新保存）';
+    status.className = 'modal-status ok';
+  } else {
+    status.textContent = '未配置凭据，请填入火山引擎 Access Key 和 Secret Key';
+    status.className = 'modal-status warn';
+  }
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('show');
+}
+
+async function saveSettings() {
+  const ak = document.getElementById('settingsAK').value.trim();
+  const sk = document.getElementById('settingsSK').value.trim();
+
+  if (!ak || !sk) {
+    alert('AK 和 SK 不能为空');
+    return;
+  }
+
+  // 保存到 localStorage
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ak, sk }));
+
+  // 同步到后端
+  const status = document.getElementById('settingsStatus');
+  status.textContent = '正在保存...';
+  status.className = 'modal-status warn';
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_key: ak, secret_key: sk }),
+    });
+    const data = await resp.json();
+
+    if (data.code === 10000) {
+      status.textContent = '凭据已保存并生效';
+      status.className = 'modal-status ok';
+      updateSettingsIndicator();
+      refreshBilling();
+
+      // 清空所有 AK 相关的缓存数据
+      VR_STATE.recordsLoaded = false;
+      VR_STATE.activeTag = null;
+      VR_STATE.allTags = [];
+      TP_STATE.tasks = [];
+
+      // 清空历史形象列表并重新加载
+      document.getElementById('historyList').innerHTML =
+        '<div class="loading"><div class="spinner"></div><p>切换账户中...</p></div>';
+      loadHistoryAvatars();
+
+      // 重置当前工作流
+      resetAll();
+
+      setTimeout(closeSettings, 800);
+    } else {
+      status.textContent = '保存失败: ' + (data.message || '未知错误');
+      status.className = 'modal-status warn';
+    }
+  } catch (err) {
+    // 后端不可用时，仅本地保存
+    console.error('保存设置到后端失败:', err);
+    status.textContent = '已保存到浏览器本地（后端无法连接: ' + (err.message || '未知错误') + '）';
+    status.className = 'modal-status warn';
+    updateSettingsIndicator();
+    setTimeout(closeSettings, 3000);
+  }
+}
+
+async function refreshBilling() {
+  const el = document.getElementById('billingInfo');
+  try {
+    const resp = await fetch(`${API_BASE}/api/billing/summary`);
+    const data = await resp.json();
+    if (data.code === 10000 && data.data) {
+      const d = data.data;
+      if (d.total_cost === 0 && d.record_count === 0) {
+        el.textContent = `💰 当前账户暂无花费记录（形象创建 0.1 元/个，视频生成 0.3 元/秒）`;
+      } else {
+        const parts = [];
+        if (d.avatar_create_count > 0) parts.push(`形象创建 ${d.avatar_create_count} 次`);
+        if (d.video_generate_count > 0) parts.push(`视频生成 ${d.video_generate_count} 次`);
+        el.textContent = `💰 当前账户累计花费: ¥${d.total_cost.toFixed(2)}（${parts.join('，')}）`;
+      }
+    } else {
+      el.textContent = '💰 花费统计暂不可用（请先配置 AK/SK）';
+    }
+  } catch (err) {
+    el.textContent = '💰 花费统计暂不可用';
+  }
+}
+
+function applyHistoryFilter() {
+  const mode = state.historyFilterMode;
+  if (mode === 'all') {
+    state.filteredAvatars = [...state.allAvatars];
+  } else {
+    state.filteredAvatars = state.allAvatars.filter(a => a.mode === mode);
+  }
+  renderHistoryList();
+  document.getElementById('historyTabCount').textContent = state.allAvatars.length;
+  document.getElementById('historyCount').textContent = `共 ${state.filteredAvatars.length} 个历史形象`;
+}
+
+function filterHistory(mode) {
+  state.historyFilterMode = mode;
+  document.querySelectorAll('#historyFilter .filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelector(`#historyFilter .filter-chip[data-mode="${mode}"]`).classList.add('active');
+  applyHistoryFilter();
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  const action = document.getElementById('historyAction');
+
+  if (state.filteredAvatars.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    action.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = state.filteredAvatars.map(av => {
+    const isSelected = state.selectedHistoryAvatar && state.selectedHistoryAvatar.resource_id === av.resource_id;
+    const shortId = av.resource_id ? av.resource_id.substring(0, 12) + '...' : '';
+    const created = av.created_at ? av.created_at.substring(0, 10) : '';
+    const hasVideo = !!av.video_url;
+    const modeLabels = { normal: '普通', loopy: '灵动', loopy_large: '大画幅灵动' };
+    const modeIcons = { normal: '🎭', loopy: '✨', loopy_large: '🎥' };
+
+    return `
+      <div class="history-card ${isSelected ? 'selected' : ''}"
+           onclick="selectHistoryAvatar('${av.resource_id}')">
+        <div class="selected-indicator">✓</div>
+        <button class="hc-delete" onclick="event.stopPropagation(); deleteHistoryAvatar('${av.resource_id}')" title="删除记录">×</button>
+        ${av.image_url
+          ? `<img class="hc-image" src="${av.image_url}" alt="形象图片" loading="lazy"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                 onload="this.nextElementSibling.style.display='none';">`
+          : ''}
+        <div class="hc-image-placeholder" style="display:${av.image_url ? 'none' : 'flex'}">
+          ${modeIcons[av.mode] || '🤖'}
+        </div>
+        <span class="hc-mode ${av.mode}">${modeLabels[av.mode] || av.mode}</span>
+        <div class="hc-id">ID: ${shortId}</div>
+        <div class="hc-date">创建于 ${created || '未知'} ${hasVideo ? ' · 已有视频' : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 更新选中操作栏
+  if (state.selectedHistoryAvatar) {
+    const av = state.selectedHistoryAvatar;
+    const modeName = { normal: '普通模式', loopy: '灵动模式', loopy_large: '大画幅灵动模式' };
+    document.getElementById('historySelectedName').textContent =
+      `${modeName[av.mode] || av.mode} · ${(av.resource_id || '').substring(0, 16)}...`;
+    action.style.display = 'block';
+  } else {
+    action.style.display = 'none';
+  }
+}
+
+function selectHistoryAvatar(resourceId) {
+  const av = state.allAvatars.find(a => a.resource_id === resourceId);
+  if (!av) return;
+
+  // 切换选中/取消
+  if (state.selectedHistoryAvatar && state.selectedHistoryAvatar.resource_id === resourceId) {
+    state.selectedHistoryAvatar = null;
+  } else {
+    state.selectedHistoryAvatar = av;
+  }
+  renderHistoryList();
+}
+
+function useHistoryAvatar() {
+  const av = state.selectedHistoryAvatar;
+  if (!av) return;
+
+  // 填充状态
+  state.mode = av.mode;
+  state.resourceId = av.resource_id;
+  state.imageUrl = av.image_url || '';
+  state.avatarTaskId = av.task_id || '';
+
+  // 同步模式选择器
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  const modeCard = document.querySelector(`.mode-card[data-mode="${av.mode}"]`);
+  if (modeCard) modeCard.classList.add('selected');
+
+  // 同步图片URL输入框
+  document.getElementById('imageUrlInput').value = state.imageUrl;
+
+  // 更新音频提示
+  const hints = {
+    normal: '支持 MP3/WAV/M4A 等格式，最长180秒',
+    loopy: '支持 MP3/WAV/M4A 等格式，真人最长180秒，宠物90秒',
+    loopy_large: '支持 MP3/WAV/M4A 等格式，最长45秒',
+  };
+  document.getElementById('audioHint').textContent = hints[state.mode] || hints['loopy'];
+
+  // 标记步骤2为完成（复用历史形象，无需重新创建）
+  document.querySelectorAll('.step-indicator').forEach(el => {
+    if (parseInt(el.dataset.step) <= 2) el.classList.add('done');
+  });
+
+  // 直接跳转到步骤3
+  goToStep3();
+}
+
+async function deleteHistoryAvatar(resourceId) {
+  if (!confirm('确定要删除这条形象记录吗？此操作不可撤销。')) return;
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/avatars/${resourceId}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.code === 10000) {
+      // 从列表中移除
+      state.allAvatars = state.allAvatars.filter(a => a.resource_id !== resourceId);
+      if (state.selectedHistoryAvatar && state.selectedHistoryAvatar.resource_id === resourceId) {
+        state.selectedHistoryAvatar = null;
+      }
+      applyHistoryFilter();
+    } else {
+      alert('删除失败: ' + (data.message || '未知错误'));
+    }
+  } catch (err) {
+    alert('删除失败: ' + err.message);
+  }
+}
+
+// ─── Tab 切换 ──────────────────────────────────────────────
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+  if (tab === 'history') {
+    document.getElementById('tabHistory').classList.add('active');
+    document.getElementById('panelHistory').classList.add('active');
+    loadHistoryAvatars(); // 刷新列表
+  } else {
+    document.getElementById('tabNew').classList.add('active');
+    document.getElementById('panelNew').classList.add('active');
+  }
+}
+
+// ─── 模式选择 ─────────────────────────────────────────────
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    state.mode = card.dataset.mode;
+
+    const hints = {
+      normal: '支持 MP3/WAV/M4A 等格式，最长180秒',
+      loopy: '支持 MP3/WAV/M4A 等格式，真人最长180秒，宠物90秒',
+      loopy_large: '支持 MP3/WAV/M4A 等格式，最长45秒',
+    };
+    document.getElementById('audioHint').textContent = hints[state.mode];
+  });
+});
+
+// ─── 图片上传 ─────────────────────────────────────────────
+document.getElementById('imageFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  await uploadFile(file, 'image');
+});
+
+document.getElementById('imageUploadZone').addEventListener('dragover', (e) => { e.preventDefault(); });
+document.getElementById('imageUploadZone').addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    document.getElementById('imageFileInput').files = e.dataTransfer.files;
+    await uploadFile(file, 'image');
+  }
+});
+
+// ─── 音频上传 ─────────────────────────────────────────────
+document.getElementById('audioFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  await uploadFile(file, 'audio');
+});
+
+document.getElementById('audioUploadZone').addEventListener('dragover', (e) => { e.preventDefault(); });
+document.getElementById('audioUploadZone').addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && (file.type.startsWith('audio/') || file.type.startsWith('video/'))) {
+    document.getElementById('audioFileInput').files = e.dataTransfer.files;
+    await uploadFile(file, 'audio');
+  }
+});
+
+async function uploadFile(file, type) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/upload/${type}`, { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    if (data.code === 10000) {
+      if (type === 'image') {
+        state.imageUrl = data.data.url;
+        state.imageUploaded = true;
+        document.getElementById('imageUrlInput').value = state.imageUrl;
+        const box = document.getElementById('imagePreviewBox');
+        box.style.display = 'block';
+        box.innerHTML = `<img src="${data.data.url}" alt="预览图片" style="max-width:300px;border-radius:8px;">`;
+      } else {
+        state.audioUrl = data.data.url;
+        state.audioUploaded = true;
+        document.getElementById('audioUrlInput').value = state.audioUrl;
+        const box = document.getElementById('audioPreviewBox');
+        box.style.display = 'block';
+        box.innerHTML = `<audio controls id="audioPreviewEl"><source src="${data.data.url}"></audio>`;
+        // 计算音频时长
+        await calcAudioDuration(data.data.url);
+      }
+    } else {
+      alert(`${type === 'image' ? '图片' : '音频'}上传失败: ${data.message}`);
+    }
+  } catch (err) {
+    alert(`上传失败: ${err.message}`);
+  }
+}
+
+async function calcAudioDuration(url) {
+  // 使用 Audio 元素获取音频时长（秒）
+  return new Promise((resolve) => {
+    const audio = new Audio(url);
+    audio.addEventListener('loadedmetadata', () => {
+      state.audioDuration = audio.duration;
+      resolve(audio.duration);
+    });
+    audio.addEventListener('error', () => {
+      state.audioDuration = 0;
+      resolve(0);
+    });
+    // 超时处理
+    setTimeout(() => { resolve(0); }, 5000);
+  });
+}
+
+// ─── 步骤导航 ─────────────────────────────────────────────
+function showStep(step) {
+  state.currentStep = step;
+  document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(`step${step}`).classList.add('active');
+
+  document.querySelectorAll('.step-indicator').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.classList.remove('active', 'done');
+    if (s === step) el.classList.add('active');
+    if (s < step) el.classList.add('done');
+  });
+}
+
+function goToStep1() { showStep(1); }
+function goToStep2() {
+  const urlInput = document.getElementById('imageUrlInput').value.trim();
+  if (urlInput) {
+    state.imageUrl = urlInput;
+    state.imageUploaded = false;
+  }
+  if (!state.imageUrl) {
+    showError('step1Error', '请先上传图片或输入图片URL');
+    return;
+  }
+  hideError('step1Error');
+
+  document.getElementById('step2ImageInfo').innerHTML = `
+    <div class="kv"><span class="key">驱动模式</span><span class="val">${getModeName(state.mode)}</span></div>
+    <div class="kv"><span class="key">图片地址</span><span class="val" style="font-size:12px">${state.imageUrl}</span></div>
+  `;
+  document.getElementById('step2Init').style.display = 'block';
+  document.getElementById('step2Progress').style.display = 'none';
+  document.getElementById('step2Result').style.display = 'none';
+  showStep(2);
+}
+function goToStep3() {
+  document.getElementById('step3AvatarInfo').innerHTML = `
+    <div class="kv"><span class="key">驱动模式</span><span class="val">${getModeName(state.mode)}</span></div>
+    <div class="kv"><span class="key">形象ID</span><span class="val" style="font-size:12px">${state.resourceId}</span></div>
+    <div class="kv"><span class="key">来源</span><span class="val">${state.selectedHistoryAvatar ? '历史形象复用' : '新创建'}</span></div>
+  `;
+  showStep(3);
+}
+
+function getModeName(mode) {
+  const names = { normal: '普通模式', loopy: '灵动模式', loopy_large: '大画幅灵动模式' };
+  return names[mode] || mode;
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'inline-flex';
+}
+function hideError(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+// ─── 步骤2：创建数字形象 ─────────────────────────────────
+async function createAvatar() {
+  const btn = document.getElementById('btnCreateAvatar');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+  hideError('step1Error');
+
+  document.getElementById('step2Init').style.display = 'none';
+  document.getElementById('step2Progress').style.display = 'block';
+  document.getElementById('step2Result').style.display = 'none';
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/avatar/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: state.imageUrl,
+        mode: state.mode,
+        label: document.getElementById('avatarLabel').value.trim(),
+        notes: '',
+      }),
+    });
+    const data = await resp.json();
+
+    if (data.code !== 10000) {
+      throw new Error(data.message || '提交失败');
+    }
+
+    state.avatarTaskId = data.data.task_id;
+    await pollAvatarStatus(state.avatarTaskId);
+  } catch (err) {
+    document.getElementById('step2Init').style.display = 'block';
+    document.getElementById('step2Progress').style.display = 'none';
+    alert('形象创建失败: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '提交形象创建';
+}
+
+async function pollAvatarStatus(taskId) {
+  let count = 0;
+  while (true) {
+    count++;
+    document.getElementById('step2PollCount').textContent = `已等待 ${count * 3} 秒...`;
+
+    // 使用带轮询的接口，传入 image_url 以自动保存记录
+    const params = new URLSearchParams({
+      mode: state.mode,
+      task_id: taskId,
+      image_url: state.imageUrl,
+    });
+    const resp = await fetch(`${API_BASE}/api/avatar/status?${params.toString()}`);
+    const data = await resp.json();
+
+    if (data.code !== 10000 || !data.data) {
+      throw new Error(data.message || '查询失败');
+    }
+
+    const status = data.data.status;
+    if (status === 'done') {
+      state.resourceId = data.data.resource_id;
+      document.getElementById('step2Progress').style.display = 'none';
+      document.getElementById('step2Result').style.display = 'block';
+      document.getElementById('step2ResultContent').innerHTML = `
+        <div class="alert alert-success">✅ 数字形象创建成功！</div>
+        <div class="result-info">
+          <div class="kv"><span class="key">形象ID (resource_id)</span><span class="val" style="font-size:12px">${state.resourceId}</span></div>
+          <div class="kv"><span class="key">任务ID</span><span class="val" style="font-size:12px">${taskId}</span></div>
+        </div>
+        <div class="alert alert-info" style="margin-top:12px;">📋 该形象已自动保存到历史记录，下次可直接复用</div>
+      `;
+      document.querySelectorAll('.step-indicator').forEach(el => {
+        if (parseInt(el.dataset.step) <= 2) el.classList.add('done');
+      });
+      refreshBilling();
+      return;
+    }
+
+    if (status === 'not_found' || status === 'expired') {
+      throw new Error(`任务${status}: 任务未找到或已过期`);
+    }
+
+    if (status === 'timeout') {
+      throw new Error('轮询超时，任务可能仍在处理中，请稍后通过形象ID查询');
+    }
+
+    await sleep(3000);
+  }
+}
+
+// ─── 步骤3：生成视频 ─────────────────────────────────────
+async function generateVideo() {
+  const audioUrlInput = document.getElementById('audioUrlInput').value.trim();
+  if (audioUrlInput) {
+    if (state.audioUrl !== audioUrlInput) {
+      state.audioUrl = audioUrlInput;
+      state.audioUploaded = false;
+      await calcAudioDuration(state.audioUrl);
+    }
+  }
+  if (!state.audioUrl) {
+    alert('请先上传音频或输入音频URL');
+    return;
+  }
+
+  const btn = document.getElementById('btnGenerateVideo');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+
+  showStep(4);
+  document.getElementById('step4Progress').style.display = 'block';
+  document.getElementById('step4Result').style.display = 'none';
+  document.getElementById('step4Warming').style.display = 'none';
+  document.getElementById('step4Error').style.display = 'none';
+
+  try {
+    const aigcBody = { resource_id: state.resourceId, audio_url: state.audioUrl, mode: state.mode, audio_duration: state.audioDuration };
+    const cp = document.getElementById('contentProducer').value.trim();
+    const pi = document.getElementById('producerId').value.trim();
+    const cpr = document.getElementById('contentPropagator').value.trim();
+    const pgi = document.getElementById('propagateId').value.trim();
+    if (cp) aigcBody.content_producer = cp;
+    if (pi) aigcBody.producer_id = pi;
+    if (cpr) aigcBody.content_propagator = cpr;
+    if (pgi) aigcBody.propagate_id = pgi;
+    aigcBody.label = document.getElementById('videoLabel').value.trim();
+    aigcBody.notes = '';
+
+    const resp = await fetch(`${API_BASE}/api/video/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(aigcBody),
+    });
+    const data = await resp.json();
+
+    if (data.code !== 10000) {
+      throw new Error(data.message || '提交失败');
+    }
+
+    state.videoTaskId = data.data.task_id;
+    await pollVideoStatus(state.videoTaskId);
+  } catch (err) {
+    document.getElementById('step4Progress').style.display = 'none';
+    document.getElementById('step4Error').style.display = 'block';
+    document.getElementById('step4ErrorMsg').textContent = '❌ 视频生成失败: ' + err.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '提交视频生成';
+}
+
+async function pollVideoStatus(taskId) {
+  let count = 0;
+  const params = new URLSearchParams({
+    mode: state.mode,
+    task_id: taskId,
+    resource_id: state.resourceId,
+  });
+  const cp = document.getElementById('contentProducer').value.trim();
+  if (cp) { params.set('content_producer', cp); params.set('producer_id', document.getElementById('producerId').value.trim()); }
+  const cpr = document.getElementById('contentPropagator').value.trim();
+  if (cpr) { params.set('content_propagator', cpr); params.set('propagate_id', document.getElementById('propagateId').value.trim()); }
+
+  while (true) {
+    count++;
+    document.getElementById('step4PollCount').textContent = `已等待 ${count * 3} 秒...`;
+
+    const resp = await fetch(`${API_BASE}/api/video/status?${params.toString()}`);
+    const data = await resp.json();
+
+    if (data.code !== 10000 || !data.data) {
+      throw new Error(data.message || '查询失败');
+    }
+
+    const status = data.data.status;
+    if (status === 'done') {
+      state.videoUrls = data.data.video_urls || [];
+      document.getElementById('step4Progress').style.display = 'none';
+      document.getElementById('step4Warming').style.display = 'block';
+      document.getElementById('step4Result').style.display = 'none';
+
+      // 等待 CDN 缓存就绪后再显示视频
+      if (state.videoUrls.length > 0) {
+        await waitForVideoReady(state.videoUrls);
+      }
+
+      document.getElementById('step4Warming').style.display = 'none';
+      document.getElementById('step4Result').style.display = 'block';
+
+      const tagged = data.data.aigc_meta_tagged ? '✅ 已打标' : '⚠️ 未打标';
+      let videosHtml = '';
+      if (state.videoUrls.length > 0) {
+        videosHtml = state.videoUrls.map((url, i) => `
+          <div style="margin-top:16px;">
+            <p style="font-weight:600;margin-bottom:8px;">视频 ${i + 1}：</p>
+            <video controls style="width:100%;max-width:600px;border-radius:8px;">
+              <source src="${url}" type="video/mp4">
+            </video>
+            <p style="margin-top:8px;font-size:12px;">
+              <a href="${url}" target="_blank" style="color:var(--primary);">📥 下载视频</a>
+              <span style="color:var(--text-muted);margin-left:10px;">（链接有效期1小时）</span>
+            </p>
+          </div>
+        `).join('');
+      } else {
+        videosHtml = '<p style="color:var(--warning);margin-top:12px;">⚠️ 未获取到视频链接，请检查任务日志</p>';
+      }
+
+      document.getElementById('step4ResultContent').innerHTML = `
+        <div class="alert alert-success">✅ 视频生成完成！</div>
+        <div class="result-info">
+          <div class="kv"><span class="key">任务ID</span><span class="val" style="font-size:12px">${taskId}</span></div>
+          <div class="kv"><span class="key">形象ID</span><span class="val" style="font-size:12px">${state.resourceId}</span></div>
+          <div class="kv"><span class="key">隐式水印</span><span class="val">${tagged}</span></div>
+          <div class="kv"><span class="key">视频数量</span><span class="val">${state.videoUrls.length}</span></div>
+        </div>
+        ${videosHtml}
+      `;
+
+      document.querySelectorAll('.step-indicator').forEach(el => el.classList.add('done'));
+      refreshBilling();
+      VR_STATE.recordsLoaded = false; // 强制下次展开时重新加载
+      return;
+    }
+
+    if (status === 'not_found' || status === 'expired') {
+      throw new Error(`任务${status}: 任务未找到或已过期`);
+    }
+
+    if (status === 'timeout') {
+      throw new Error('轮询超时，任务可能仍在处理中，请稍后通过任务ID查询');
+    }
+
+    await sleep(3000);
+  }
+}
+
+// ─── CDN 缓存预热 ─────────────────────────────────────────
+async function checkVideoAccessible(url) {
+  try {
+    const resp = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+    // no-cors 模式下无法读取 status，能完成请求即视为可达
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function waitForVideoReady(urls, maxWaitSec = 30) {
+  const CHECK_INTERVAL = 3; // 秒
+  let elapsed = 0;
+  const totalSteps = Math.ceil(maxWaitSec / CHECK_INTERVAL);
+  let step = 0;
+
+  const warmingText = document.getElementById('step4WarmingText');
+  const warmingFill = document.getElementById('step4WarmingFill');
+
+  while (elapsed < maxWaitSec) {
+    step++;
+    const pct = Math.min(100, Math.round((step / totalSteps) * 100));
+    warmingFill.style.width = pct + '%';
+    warmingText.textContent = `等待 CDN 缓存就绪... (${elapsed}秒)` ;
+
+    // 逐个检查所有视频 URL
+    const results = await Promise.all(urls.map(u => checkVideoAccessible(u)));
+    if (results.every(r => r === true)) {
+      warmingFill.style.width = '100%';
+      warmingText.textContent = 'CDN 缓存就绪，正在加载视频...';
+      await sleep(500);
+      return;
+    }
+
+    await sleep(CHECK_INTERVAL * 1000);
+    elapsed += CHECK_INTERVAL;
+  }
+
+  // 超时后仍然显示视频（CDN 可能稍后才能访问）
+  warmingFill.style.width = '100%';
+  warmingText.textContent = '等待超时，即将显示视频（可稍后刷新预览）';
+  await sleep(1000);
+}
+
+// ─── 重置 ─────────────────────────────────────────────────
+function resetAll() {
+  state.resourceId = '';
+  state.avatarTaskId = '';
+  state.videoTaskId = '';
+  state.videoUrls = [];
+  state.imageUrl = '';
+  state.imageUploaded = false;
+  state.audioUrl = '';
+  state.audioUploaded = false;
+  state.audioDuration = 0;
+  state.selectedHistoryAvatar = null;
+
+  document.getElementById('imageUrlInput').value = '';
+  document.getElementById('audioUrlInput').value = '';
+  document.getElementById('imagePreviewBox').style.display = 'none';
+  document.getElementById('imagePreviewBox').innerHTML = '';
+  document.getElementById('audioPreviewBox').style.display = 'none';
+  document.getElementById('audioPreviewBox').innerHTML = '';
+
+  document.getElementById('contentProducer').value = '';
+  document.getElementById('producerId').value = '';
+  document.getElementById('contentPropagator').value = '';
+  document.getElementById('propagateId').value = '';
+
+  document.querySelectorAll('.step-indicator').forEach(el => el.classList.remove('done'));
+
+  showStep(1);
+  switchTab('history');
+  loadHistoryAvatars();
+}
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// ─── 视频生成记录 ─────────────────────────────────────────
+const VR_STATE = {
+  records: [],
+  allTags: [],
+  activeTag: null,
+  recordsLoaded: false,
+};
+
+async function loadVideoRecords(tag = null, keyword = null) {
+  try {
+    const params = new URLSearchParams();
+    if (tag) params.set('tag', tag);
+    if (keyword) params.set('keyword', keyword);
+    params.set('limit', '50');
+    const resp = await fetch(`${API_BASE}/api/video-records?${params.toString()}`);
+    const data = await resp.json();
+    if (data.code === 10000 && data.data) {
+      VR_STATE.records = data.data.records || [];
+      VR_STATE.allTags = data.data.tags || [];
+      VR_STATE.recordsLoaded = true;
+      renderVRList();
+      renderVRTagFilter();
+    }
+  } catch (err) {
+    console.error('加载视频记录失败:', err);
+  }
+}
+
+function toggleVideoRecords() {
+  const panel = document.getElementById('vrPanel');
+  const toggle = document.getElementById('vrToggle');
+  const isOpen = panel.classList.contains('open');
+
+  if (isOpen) {
+    panel.classList.remove('open');
+    toggle.classList.remove('open');
+  } else {
+    panel.classList.add('open');
+    toggle.classList.add('open');
+    if (!VR_STATE.recordsLoaded) {
+      loadVideoRecords();
+    }
+  }
+}
+
+function renderVRTagFilter() {
+  const container = document.getElementById('vrTagFilter');
+  const tags = VR_STATE.allTags;
+  if (tags.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
+  container.innerHTML = `<button class="filter-chip ${VR_STATE.activeTag === null ? 'active' : ''}" onclick="filterVRByTag(null)">全部</button>`
+    + tags.map(t => `<button class="filter-chip ${VR_STATE.activeTag === t ? 'active' : ''}" onclick="filterVRByTag('${escapeHtml(t)}')">${escapeHtml(t)}</button>`).join('');
+}
+
+function filterVRByTag(tag) {
+  VR_STATE.activeTag = tag;
+  const kw = document.getElementById('vrSearch').value.trim() || null;
+  loadVideoRecords(tag, kw);
+}
+
+function onVRSearch() {
+  const kw = document.getElementById('vrSearch').value.trim() || null;
+  loadVideoRecords(VR_STATE.activeTag, kw);
+}
+
+function renderVRList() {
+  const container = document.getElementById('vrRecords');
+  const empty = document.getElementById('vrEmpty');
+  const countEl = document.getElementById('vrCount');
+  const records = VR_STATE.records;
+
+  countEl.textContent = records.length;
+
+  if (records.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  const modeLabels = { normal: '普通', loopy: '灵动', loopy_large: '大画幅灵动' };
+
+  container.innerHTML = records.map(r => {
+    const created = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : '';
+    const tags = Array.isArray(r.tags) ? r.tags : [];
+    const duration = r.audio_duration ? `${r.audio_duration.toFixed(1)}秒` : '';
+    const cost = r.audio_duration ? `¥${(r.audio_duration * 0.3).toFixed(2)}` : '';
+    const videoUrls = Array.isArray(r.video_urls) ? r.video_urls : [];
+    const notes = r.notes || '';
+
+    return `
+    <div class="vr-record" id="vr-record-${r.id}">
+      <div class="vr-main">
+        <div class="vr-meta">
+          <span class="vr-mode-chip ${r.mode}">${modeLabels[r.mode] || r.mode}</span>
+          <span class="vr-date">${created}</span>
+          ${duration ? `<span class="vr-duration">⏱ ${duration}</span>` : ''}
+          ${cost ? `<span class="vr-cost">${cost}</span>` : ''}
+          <span style="font-size:11px;color:var(--text-muted);">ID: ${(r.resource_id || '').substring(0, 14)}...</span>
+        </div>
+        <div class="vr-tags" id="vr-tags-${r.id}">
+          ${tags.map(t => `<span class="vr-tag">${escapeHtml(t)}<span class="vr-tag-remove" onclick="removeVRTag(${r.id},'${escapeHtml(t)}')" title="移除标签">×</span></span>`).join('')}
+          ${renderAddTagBtn(r.id)}
+        </div>
+        <div class="vr-notes" id="vr-notes-display-${r.id}" onclick="editVRNotes(${r.id})" title="点击编辑备注">
+          ${notes ? escapeHtml(notes) : '<span style="color:var(--text-muted);">添加备注...</span>'}
+        </div>
+        ${videoUrls.length > 0 ? `<div style="margin-top:4px;">${videoUrls.map((u,i) => `<a class="vr-video-link" href="${u}" target="_blank">📹 视频${i+1}</a>`).join(' ')}</div>` : ''}
+      </div>
+      <div class="vr-actions">
+        <button onclick="deleteVR(${r.id})" class="vr-btn-danger">🗑 删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAddTagBtn(recordId) {
+  return `<button class="vr-add-tag" onclick="startAddTag(${recordId})" id="vr-add-btn-${recordId}">+ 标签</button>`;
+}
+
+function startAddTag(recordId) {
+  const tagsDiv = document.getElementById(`vr-tags-${recordId}`);
+  const btn = document.getElementById(`vr-add-btn-${recordId}`);
+  if (!btn) return;
+
+  btn.outerHTML = `<input type="text" class="vr-tag-input" id="vr-tag-input-${recordId}"
+    placeholder="输入标签" onkeydown="if(event.key==='Enter')commitAddTag(${recordId})"
+    onblur="cancelAddTag(${recordId})">`;
+  const input = document.getElementById(`vr-tag-input-${recordId}`);
+  if (input) input.focus();
+}
+
+function commitAddTag(recordId) {
+  const input = document.getElementById(`vr-tag-input-${recordId}`);
+  if (!input) return;
+  const tag = input.value.trim();
+  if (!tag) { cancelAddTag(recordId); return; }
+
+  const record = VR_STATE.records.find(r => r.id === recordId);
+  if (!record) return;
+
+  const tags = Array.isArray(record.tags) ? [...record.tags] : [];
+  if (tags.includes(tag)) { cancelAddTag(recordId); return; }
+  tags.push(tag);
+
+  saveVRMeta(recordId, tags, null);
+}
+
+function cancelAddTag(recordId) {
+  const input = document.getElementById(`vr-tag-input-${recordId}`);
+  if (input) {
+    input.outerHTML = renderAddTagBtn(recordId);
+  }
+}
+
+async function removeVRTag(recordId, tag) {
+  const record = VR_STATE.records.find(r => r.id === recordId);
+  if (!record) return;
+
+  const tags = (Array.isArray(record.tags) ? record.tags : []).filter(t => t !== tag);
+  await saveVRMeta(recordId, tags, null);
+}
+
+function editVRNotes(recordId) {
+  const display = document.getElementById(`vr-notes-display-${recordId}`);
+  if (!display) return;
+
+  const record = VR_STATE.records.find(r => r.id === recordId);
+  if (!record) return;
+
+  const currentNotes = record.notes || '';
+  display.outerHTML = `<textarea class="vr-notes-edit" id="vr-notes-edit-${recordId}">${escapeHtml(currentNotes)}</textarea>`;
+  const textarea = document.getElementById(`vr-notes-edit-${recordId}`);
+  if (textarea) {
+    textarea.focus();
+    textarea.addEventListener('blur', () => commitVRNotes(recordId));
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitVRNotes(recordId); }
+    });
+  }
+}
+
+async function commitVRNotes(recordId) {
+  const textarea = document.getElementById(`vr-notes-edit-${recordId}`);
+  if (!textarea) return;
+  const notes = textarea.value;
+  await saveVRMeta(recordId, null, notes);
+}
+
+async function saveVRMeta(recordId, tags, notes) {
+  try {
+    const body = {};
+    if (tags !== null) body.tags = tags;
+    if (notes !== null) body.notes = notes;
+
+    const resp = await fetch(`${API_BASE}/api/video-records/${recordId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (data.code === 10000 && data.data) {
+      // 更新本地状态
+      const idx = VR_STATE.records.findIndex(r => r.id === recordId);
+      if (idx >= 0) {
+        VR_STATE.records[idx].tags = data.data.tags;
+        VR_STATE.records[idx].notes = data.data.notes;
+        VR_STATE.records[idx].updated_at = data.data.updated_at;
+      }
+      // 重新加载标签列表
+      loadVideoRecords(VR_STATE.activeTag, document.getElementById('vrSearch').value.trim() || null);
+    } else {
+      alert('保存失败: ' + (data.message || '未知错误'));
+    }
+  } catch (err) {
+    alert('保存失败: ' + err.message);
+  }
+}
+
+async function deleteVR(recordId) {
+  if (!confirm('确定要删除这条视频记录吗？此操作不可撤销。')) return;
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/video-records/${recordId}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.code === 10000) {
+      VR_STATE.records = VR_STATE.records.filter(r => r.id !== recordId);
+      renderVRList();
+      renderVRTagFilter();
+    } else {
+      alert('删除失败: ' + (data.message || '未知错误'));
+    }
+  } catch (err) {
+    alert('删除失败: ' + err.message);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ─── 任务面板 ────────────────────────────────────────────
+const TP_STATE = {
+  tasks: [],
+  filter: 'pending',
+  panelOpen: false,
+  pollTimer: null,
+};
+
+const STATUS_LABELS = {
+  submitted: '已提交', in_queue: '排队中', generating: '生成中',
+  done: '已完成', failed: '失败', not_found: '未找到', expired: '已过期',
+};
+
+function toggleTaskPanel() {
+  const panel = document.getElementById('tpPanel');
+  const toggle = document.getElementById('tpToggle');
+  TP_STATE.panelOpen = !TP_STATE.panelOpen;
+
+  if (TP_STATE.panelOpen) {
+    panel.classList.add('open');
+    toggle.classList.add('open');
+    loadTasks();
+    startTaskPolling();
+  } else {
+    panel.classList.remove('open');
+    toggle.classList.remove('open');
+    stopTaskPolling();
+  }
+}
+
+async function loadTasks() {
+  try {
+    const kw = document.getElementById('tpSearch').value.trim();
+    let url = `${API_BASE}/api/tasks?limit=100`;
+    if (kw) url += `&keyword=${encodeURIComponent(kw)}`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.code === 10000 && data.data) {
+      let tasks = data.data.tasks || [];
+      if (TP_STATE.filter === 'pending') {
+        tasks = tasks.filter(t => !['done', 'failed', 'not_found', 'expired'].includes(t.status));
+      } else if (TP_STATE.filter === 'done') {
+        tasks = tasks.filter(t => t.status === 'done');
+      }
+      TP_STATE.tasks = tasks;
+      renderTaskList();
+    }
+  } catch (err) {
+    console.error('加载任务列表失败:', err);
+  }
+}
+
+function renderTaskList() {
+  const container = document.getElementById('tpList');
+  const empty = document.getElementById('tpEmpty');
+  const countEl = document.getElementById('tpPendingCount');
+  const hint = document.getElementById('tpRefreshHint');
+  const tasks = TP_STATE.tasks;
+
+  const pendingCount = tasks.filter(
+    t => !['done', 'failed', 'not_found', 'expired'].includes(t.status)
+  ).length;
+  countEl.textContent = pendingCount;
+
+  if (tasks.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    hint.textContent = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+  hint.textContent = `共 ${tasks.length} 条记录 · 状态每 10 秒自动刷新`;
+
+  const after = new Date();
+
+  container.innerHTML = tasks.map(t => {
+    const statusText = STATUS_LABELS[t.status] || t.status;
+    const created = t.created_at ? t.created_at.substring(0, 16).replace('T', ' ') : '';
+    const typeLabel = t.task_type === 'avatar' ? '形象' : '视频';
+    const labelDisplay = t.label || `<span class="tp-empty-label">未设置标签 (task_id: ${(t.task_id||'').substring(0,12)}...)</span>`;
+    const notesDisplay = t.notes ? `💬 ${escapeHtml(t.notes)}` : '';
+    const isPending = !['done', 'failed', 'not_found', 'expired'].includes(t.status);
+
+    return `
+    <div class="tp-item">
+      <div class="tp-status-dot ${t.status}" title="${statusText}"></div>
+      <div class="tp-info">
+        <div class="tp-label">${labelDisplay} <span class="tp-task-type">${typeLabel}</span></div>
+        <div class="tp-meta">${statusText} · ${t.mode || ''} · ${created} · ${(t.task_id||'').substring(0,16)}...</div>
+        ${notesDisplay ? `<div class="tp-notes">${notesDisplay}</div>` : ''}
+        ${t.resource_id ? `<div class="tp-meta">资源ID: ${t.resource_id.substring(0,16)}...</div>` : ''}
+      </div>
+      <div class="tp-actions">
+        ${isPending ? `<button onclick="refreshSingleTask('${t.task_id}','${t.task_type}','${t.mode||'normal'}')">🔄 刷新</button>` : ''}
+        <button onclick="deleteTask('${t.task_id}')" class="tp-btn-delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterTasksByStatus(filter) {
+  TP_STATE.filter = filter;
+  document.querySelectorAll('.tp-toolbar .tp-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById(filter === 'all' ? 'tpBtnAll' : filter === 'pending' ? 'tpBtnPending' : 'tpBtnDone');
+  if (activeBtn) activeBtn.classList.add('active');
+  loadTasks();
+}
+
+function onTPSearch() {
+  const kw = document.getElementById('tpSearch').value.trim();
+  if (kw) {
+    loadTasks();
+  } else {
+    filterTasksByStatus(TP_STATE.filter);
+  }
+}
+
+async function deleteTask(taskId) {
+  if (!confirm('确定要删除此任务记录吗？')) return;
+  try {
+    await fetch(`${API_BASE}/api/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+    TP_STATE.tasks = TP_STATE.tasks.filter(t => t.task_id !== taskId);
+    renderTaskList();
+  } catch (err) {
+    alert('删除失败: ' + err.message);
+  }
+}
+
+async function refreshSingleTask(taskId, taskType, mode) {
+  try {
+    const endpoint = taskType === 'avatar'
+      ? `${API_BASE}/api/avatar/status/poll?mode=${mode}&task_id=${taskId}`
+      : `${API_BASE}/api/video/status/poll?mode=${mode}&task_id=${taskId}`;
+    const resp = await fetch(endpoint);
+    const data = await resp.json();
+    if (data.code === 10000 && data.data) {
+      const newStatus = data.data.status;
+      const idx = TP_STATE.tasks.findIndex(t => t.task_id === taskId);
+      if (idx >= 0) {
+        TP_STATE.tasks[idx].status = newStatus;
+        if (newStatus === 'done' && data.data.resource_id) {
+          TP_STATE.tasks[idx].resource_id = data.data.resource_id;
+        }
+      }
+      renderTaskList();
+    }
+  } catch (err) {
+    console.error('刷新任务状态失败:', err);
+  }
+}
+
+async function refreshTaskStatuses() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/tasks/refresh-status`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.code === 10000) {
+      TP_STATE.tasks = data.data.updated_tasks || [];
+    }
+    // Reload full list
+    await loadTasks();
+    document.getElementById('tpRefreshHint').textContent =
+      '状态已刷新 · ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    console.error('刷新任务状态失败:', err);
+  }
+}
+
+function startTaskPolling() {
+  stopTaskPolling();
+  TP_STATE.pollTimer = setInterval(() => {
+    loadTasks();
+  }, 10000);
+}
+
+function stopTaskPolling() {
+  if (TP_STATE.pollTimer) {
+    clearInterval(TP_STATE.pollTimer);
+    TP_STATE.pollTimer = null;
+  }
+}
+</script>
+</body>
+</html>

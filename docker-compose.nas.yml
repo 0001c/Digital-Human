@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  digital-human:
+    image: digital-human:latest
+    container_name: digital-human
+    ports:
+      - "16666:8000"
+    volumes:
+      - digital-human-data:/app/data
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      # 公网访问地址（frp/内网穿透等），上传文件会返回完整URL供火山引擎API下载
+      # 请替换为你的实际公网地址，例如: http://mefrp_tunnel.atxa.top:16040
+      # - PUBLIC_BASE_URL=
+
+volumes:
+  digital-human-data:
+    driver: local
